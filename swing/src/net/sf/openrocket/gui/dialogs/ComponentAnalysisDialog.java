@@ -499,7 +499,11 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 		buttonTest.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent actionEvent) {
-				saveCallback(0.3, 1.5);
+				for (double machIter = 0.05; machIter < 0.9; machIter += 0.05) {
+					for (double rollIter = 0.5; rollIter < 5.0; rollIter += 0.5) {
+						saveCallback(machIter, rollIter);
+					}
+				}
 			}
 		});
 		panel.add(buttonTest, "tag save");
