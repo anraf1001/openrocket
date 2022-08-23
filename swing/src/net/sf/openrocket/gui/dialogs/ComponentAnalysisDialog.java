@@ -495,6 +495,14 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 		});
 		panel.add(button, "span, tag cancel");
 
+		JButton buttonTest = new JButton("Save");
+		buttonTest.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent actionEvent) {
+				saveCallback(0.3, 1.5);
+			}
+		});
+		panel.add(buttonTest, "tag save");
 
 		this.setLocationByPlatform(true);
 		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
@@ -503,7 +511,109 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 		GUIUtil.setDisposableDialogOptions(this, null);
 	}
 
+	void saveCallback(double machParam, double rollParam) {
+		final FlightConfiguration configuration = rkt.getSelectedConfiguration();
+		AerodynamicForces forces;
+		WarningSet set = new WarningSet();
+		conditions.setAOA(aoa.getValue());
+		conditions.setTheta(theta.getValue());
+		conditions.setMach(machParam);
+		conditions.setRollRate(rollParam);
+		conditions.setReference(configuration);
 
+		if (worstToggle.isSelected()) {
+			aerodynamicCalculator.getWorstCP(configuration, conditions, null);
+			if (!MathUtil.equals(conditions.getTheta(), theta.getValue())) {
+				fakeChange = true;
+				theta.setValue(conditions.getTheta()); // Fires a stateChanged event
+				fakeChange = false;
+				return;
+			}
+		}
+
+		// key is the comp.hashCode() or motor.getDesignation().hashCode()
+		Map<Integer, CMAnalysisEntry> cmMap= MassCalculator.getCMAnalysis(configuration);
+
+		Map<RocketComponent, AerodynamicForces> aeroData = aerodynamicCalculator.getForceAnalysis(configuration, conditions, set);
+
+		stabData.clear();
+		dragData.clear();
+		rollData.clear();
+
+		for(final RocketComponent comp: configuration.getAllComponents()) {
+			// // this is actually redundant, because the analysis will not contain inactive stages.
+			// if (!configuration.isComponentActive(comp)) {
+			// 	continue;
+			// }
+
+			CMAnalysisEntry cmEntry = cmMap.get(comp.hashCode());
+			if (null == cmEntry) {
+				log.warn("Could not find massData entry for component: " + comp.getName());
+				continue;
+			}
+
+			if ((comp instanceof ComponentAssembly) && !(comp instanceof Rocket)){
+				continue;
+			}
+
+			LongitudinalStabilityRow row = new LongitudinalStabilityRow(cmEntry.name, cmEntry.source);
+			stabData.add(row);
+
+			row.source = cmEntry.source;
+			row.eachMass = cmEntry.eachMass;
+			row.cm = cmEntry.totalCM;
+
+			forces = aeroData.get(comp);
+			if (forces == null) {
+				row.cpx = 0.0;
+				row.cna = 0.0;
+				continue;
+			}
+
+			if (forces.getCP() != null) {
+				row.cpx = forces.getCP().x;
+				row.cna = forces.getCNa();
+			}
+
+			if (!Double.isNaN(forces.getCD())) {
+				dragData.add(forces);
+			}
+
+			if (comp instanceof FinSet) {
+				System.out.format("%.4f,%.4f,%.4f,%.4f\n", machParam, rollParam, forces.getCrollForce(), forces.getCrollDamp());
+				rollData.add(forces);
+			}
+			// // We _would_ check this, except TubeFinSet doesn't implement cant angles... so they can't impart any roll torque
+			// // If this is ever implemented, uncomment this block:
+			// else if(comp instanceof TubeFinSet){
+			// 	rollData.add(forces)
+			// }
+		}
+
+		for(final MotorConfiguration config: configuration.getActiveMotors()) {
+			CMAnalysisEntry cmEntry = cmMap.get(config.getMotor().getDesignation().hashCode());
+			if (null == cmEntry) {
+				continue;
+			}
+
+			LongitudinalStabilityRow row = new LongitudinalStabilityRow(cmEntry.name, cmEntry.source);
+			stabData.add(row);
+
+			row.source = cmEntry.source;
+			row.eachMass = cmEntry.eachMass;
+			row.cm = cmEntry.totalCM;
+			row.cpx = 0.0;
+			row.cna = 0.0;
+		}
+
+		// Set warnings
+		if (set.isEmpty()) {
+			warningList.setListData(new String[] {trans.get("componentanalysisdlg.noWarnings")
+			});
+		} else {
+			warningList.setListData(new Vector<Warning>(set));
+		}
+	}
 
 	/**
 	 * Updates the data in the table and fires a table data change event.
