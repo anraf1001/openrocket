@@ -12,6 +12,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EventObject;
 import java.util.List;
@@ -499,11 +502,23 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 		buttonTest.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent actionEvent) {
+				PrintWriter writer = null;
+				try {
+					writer = new PrintWriter("data.csv", StandardCharsets.UTF_8);
+					writer.println("mach,rollRate,rollForceCoeffCanard,rollForceCoeffFin,rollDampCoeffCanard,rollDampCoeffFin");
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
 				for (double machIter = 0.05; machIter < 0.9; machIter += 0.05) {
-					for (double rollIter = 0.5; rollIter < 5.0; rollIter += 0.5) {
-						saveCallback(machIter, rollIter);
+					for (double rollIter = 0.11; rollIter < 50.0; rollIter += 0.01) {
+						try {
+							saveCallback(machIter, rollIter, writer);
+						} catch (IOException e) {
+							throw new RuntimeException(e);
+						}
 					}
 				}
+				writer.close();
 			}
 		});
 		panel.add(buttonTest, "tag save");
@@ -515,7 +530,7 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 		GUIUtil.setDisposableDialogOptions(this, null);
 	}
 
-	void saveCallback(double machParam, double rollParam) {
+	void saveCallback(double machParam, double rollParam, PrintWriter writer) throws IOException {
 		final FlightConfiguration configuration = rkt.getSelectedConfiguration();
 		AerodynamicForces forces;
 		WarningSet set = new WarningSet();
@@ -544,6 +559,9 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 		dragData.clear();
 		rollData.clear();
 
+		double[] cRollForce = new double[configuration.getAllComponents().size()];
+		double[] cRollDamp = new double[configuration.getAllComponents().size()];
+		int iter = 0;
 		for(final RocketComponent comp: configuration.getAllComponents()) {
 			// // this is actually redundant, because the analysis will not contain inactive stages.
 			// if (!configuration.isComponentActive(comp)) {
@@ -584,7 +602,10 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 			}
 
 			if (comp instanceof FinSet) {
-				System.out.format("%.4f,%.4f,%.4f,%.4f\n", machParam, rollParam, forces.getCrollForce(), forces.getCrollDamp());
+				cRollForce[iter] = forces.getCrollForce();
+				cRollDamp[iter] = forces.getCrollDamp();
+				iter++;
+//				System.out.format("%s,%.4f,%.4f,%.4f,%.4f\n", comp.getComponentName(), machParam, rollParam, forces.getCrollForce(), forces.getCrollDamp());
 				rollData.add(forces);
 			}
 			// // We _would_ check this, except TubeFinSet doesn't implement cant angles... so they can't impart any roll torque
@@ -593,6 +614,8 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 			// 	rollData.add(forces)
 			// }
 		}
+
+		writer.format("%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n", machParam, rollParam, cRollForce[0], cRollForce[1], cRollDamp[0], cRollDamp[1]);
 
 		for(final MotorConfiguration config: configuration.getActiveMotors()) {
 			CMAnalysisEntry cmEntry = cmMap.get(config.getMotor().getDesignation().hashCode());
