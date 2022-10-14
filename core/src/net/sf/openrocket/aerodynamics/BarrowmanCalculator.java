@@ -863,7 +863,7 @@ public class BarrowmanCalculator extends AbstractAerodynamicCalculator {
 						(conditions.getRefArea() * conditions.getRefLength());
 			}
 		}
-		
+		System.out.format("Damping mul: %.4f\n", mul);
 		return mul;
 	}
 	

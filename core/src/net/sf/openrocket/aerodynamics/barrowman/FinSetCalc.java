@@ -69,7 +69,8 @@ public class FinSetCalc extends RocketComponentCalc {
 		bodyLength = component.getParent().getLength();
 		bodyRadius = fin.getBodyRadius();
 		finCount = fin.getFinCount();
-		
+		System.out.format("BodyRadius: %.4f\n", bodyRadius);
+
 		cantAngle = fin.getCantAngle();
 		span = fin.getSpan();
 		finArea = fin.getPlanformArea();
@@ -122,6 +123,8 @@ public class FinSetCalc extends RocketComponentCalc {
 		double cna;
 		double theta = conditions.getTheta();
 		double angle = transform.getXrotation();
+//		System.out.format("Theta: %.4f\n", theta);
+//		System.out.format("Angle: %.4f\n", angle);
 
 		// Compute basic CNa without interference effects
 		cna = cna1 * MathUtil.pow2(Math.sin(theta - angle));
@@ -247,6 +250,9 @@ public class FinSetCalc extends RocketComponentCalc {
 		
 		span = component.getSpan();
 		finArea = component.getPlanformArea();
+		System.out.format("Name: %s", component.getComponentName());
+		System.out.format("Span: %.4f\n", span);
+		System.out.format("Fin area: %.5f\n", finArea);
 		ar = 2 * pow2(span) / finArea;
 		
 		Coordinate[] points = component.getFinPoints();
@@ -381,6 +387,8 @@ public class FinSetCalc extends RocketComponentCalc {
 		macLead /= area;
 		cosGamma /= (DIVISIONS - 1);
 		cosGammaLead /= (DIVISIONS - 1);
+
+		System.out.format("Cos gamma: %.4f\n\n", cosGamma);
 	}
 	
 	///////////////  CNa1 calculation  ////////////////
