@@ -509,8 +509,8 @@ public class ComponentAnalysisDialog extends JDialog implements StateChangeListe
 				} catch (IOException e) {
 					throw new RuntimeException(e);
 				}
-				for (double machIter = 0.05; machIter < 0.9; machIter += 0.05) {
-					for (double rollIter = 0.11; rollIter < 50.0; rollIter += 0.01) {
+				for (double machIter = 0.005; machIter < 0.9; machIter += 0.005) {
+					for (double rollIter = 0.01; rollIter < 50.0; rollIter += 0.01) {
 						try {
 							saveCallback(machIter, rollIter, writer);
 						} catch (IOException e) {
