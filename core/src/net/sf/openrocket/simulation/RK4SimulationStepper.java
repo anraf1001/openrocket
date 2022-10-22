@@ -452,7 +452,6 @@ public class RK4SimulationStepper extends AbstractSimulationStepper {
 		// TODO: HIGH: This should rather be performed as a listener
 		store.forces.setCm(store.forces.getCm() + (PITCH_YAW_RANDOM * 2 * (random.nextDouble() - 0.5)));
 		store.forces.setCyaw(store.forces.getCyaw() + (PITCH_YAW_RANDOM * 2 * (random.nextDouble() - 0.5)));
-		
 
 		// Call post-listeners
 		store.forces = SimulationListenerHelper.firePostAerodynamicCalculation(status, store.forces);

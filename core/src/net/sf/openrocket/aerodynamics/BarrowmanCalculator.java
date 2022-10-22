@@ -2,6 +2,9 @@ package net.sf.openrocket.aerodynamics;
 
 import static net.sf.openrocket.util.MathUtil.pow2;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import net.sf.openrocket.rocketcomponent.AxialStage;
@@ -43,6 +46,8 @@ public class BarrowmanCalculator extends AbstractAerodynamicCalculator {
 	
 	private double cacheDiameter = -1;
 	private double cacheLength = -1;
+
+	private boolean saveFlag = true;
 
 	
 	public BarrowmanCalculator() {
@@ -179,19 +184,51 @@ public class BarrowmanCalculator extends AbstractAerodynamicCalculator {
 		
 		if (warnings == null)
 			warnings = ignoreWarningSet;
-		
+
+		if (saveFlag) {
+			FlightConditions realConditions = conditions.clone();
+
+			try(PrintWriter writer = new PrintWriter("pitch_data.csv", StandardCharsets.UTF_8)) {
+				writer.println("Mach,AngleOfAttack,PitchRate,Cm");
+				System.out.format("Mach,AngleOfAttack,PitchRate,Cm\n");
+				for (double mach = 0.0; mach < 0.9; mach += 0.01) {
+					conditions.setMach(mach);
+					for (double aoa = 0.0; aoa < 0.34; aoa += 0.001) {
+						conditions.setAOA(aoa);
+						for (double pitchRate = 0.0; pitchRate < 50.0; pitchRate += 0.005) {
+							conditions.setPitchRate(pitchRate);
+							AerodynamicForces total = calculateForces(configuration, conditions, warnings);
+							writer.format("%.4f,%.4f,%.4f,%.4f\n", mach, aoa, pitchRate, total.getCm());
+							System.out.format("%.4f,%.4f,%.4f,%.4f\n", mach, aoa, pitchRate, total.getCm());
+						}
+					}
+				}
+			} catch (IOException exc) {
+				
+			}
+
+			conditions = realConditions;
+			saveFlag = false;
+		}
+
+		return calculateForces(configuration, conditions, warnings);
+	}
+
+	private AerodynamicForces calculateForces(FlightConfiguration configuration,
+											  FlightConditions conditions,
+											  WarningSet warnings) {
 		// Calculate non-axial force data
 		AerodynamicForces total = calculateNonAxialForces(configuration, conditions, warnings);
-		
+
 		// Calculate friction data
 		total.setFrictionCD(calculateFrictionCD(configuration, conditions, null, warnings));
 		total.setPressureCD(calculatePressureCD(configuration, conditions, null, warnings));
 		total.setBaseCD(calculateBaseCD(configuration, conditions, null, warnings));
-		
+
 		total.setCD(total.getFrictionCD() + total.getPressureCD() + total.getBaseCD());
-		
+
 		total.setCDaxial(calculateAxialCD(conditions, total.getCD()));
-		
+
 		// Calculate pitch and yaw damping moments
 		calculateDampingMoments(configuration, conditions, total);
 		total.setCm(total.getCm() - total.getPitchDampingMoment());
